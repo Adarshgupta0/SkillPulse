@@ -32,7 +32,6 @@ router.post("/change-password",
     changePassAuth,
     change_password
 )
-
 router.get("/check-otp-token",
     otpAuth,
     (req, res) => {
