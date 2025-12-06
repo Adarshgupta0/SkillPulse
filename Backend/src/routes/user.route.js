@@ -3,7 +3,7 @@ const router = express.Router();
 const { userAuth } = require("../middlewares/userAuth");
 
 const { body } = require('express-validator');
-const { register, login, logout, forgot_password, otp_verify, change_password } = require("../controllers/user.controllers")
+const { register, login, logout, forgot_password, otp_verify, change_password, profile, home, lesson, quiz, edit_profile } = require("../controllers/user.controllers")
 const { otpAuth, changePassAuth } = require("../middlewares/changePassAuth")
 
 
@@ -36,10 +36,10 @@ router.post("/change-password",
 router.get("/check-otp-token",
     otpAuth,
     (req, res) => {
-          try {
+        try {
             res.send("otpAuth check")
         } catch (error) {
-            res.json({error: error})
+            res.json({ error: error })
         }
     }
 )
@@ -49,9 +49,31 @@ router.get("/check-changepassword-token",
         try {
             res.send("changePassAuth check")
         } catch (error) {
-            res.json({error: error})
+            res.json({ error: error })
         }
     }
+)
+router.get("/profile",
+    userAuth,
+    profile
+)
+router.get("/home",
+    userAuth,
+    home
+)
+router.get("/quiz",
+    userAuth,
+    quiz
+)
+router.get("/lesson",
+    userAuth,
+    lesson
+)
+router.post("/edit-profile", [
+    body("email").isEmail().withMessage("Invalid Email"),
+    body("name").isLength({ min: 3 }).withMessage("name must be at least 3 characters long"),
+], userAuth,
+   edit_profile
 )
 
 

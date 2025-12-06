@@ -1,6 +1,10 @@
 const { validationResult } = require('express-validator');
 const usermodel = require("../models/user.model");
 const otpmodel = require("../models/user.otp.model")
+const lessonmodel = require('../models/lesson.model')
+const tutorialmodel = require('../models/tutorial.model')
+const roadmapmodel = require('../models/roadmap.model')
+const quizmodel = require('../models/quiz.model')
 const { hashPassword, comparePassword } = require("../services/hashPassword")
 const { createuser } = require("../services/user.create")
 const { generateToken } = require("../services/JwtToken")
@@ -97,7 +101,6 @@ module.exports.logout = async function (req, res, next) {
     try {
         res.clearCookie("userAuthToken", {
             httpOnly: true,
-            // secure: process.env.NODE_ENV === "production",
             sameSite: "strict"
         });
         return res.status(200).json({ success: true, message: "Logout successful" });
@@ -213,7 +216,6 @@ module.exports.otp_verify = async function (req, res, next) {
 
         res.clearCookie("otpAuthToken", {
             httpOnly: true,
-            // secure: process.env.NODE_ENV === "production",
             sameSite: "strict"
         });
 
@@ -248,7 +250,6 @@ module.exports.change_password = async function (req, res, next) {
 
         res.clearCookie("changePassAuthToken", {
             httpOnly: true,
-            // secure: process.env.NODE_ENV === "production",
             sameSite: "strict"
         });
 
@@ -260,4 +261,133 @@ module.exports.change_password = async function (req, res, next) {
         return res.status(504).json({ message: "changepassword error", error: error, success: false })
     }
 
+}
+
+module.exports.profile = async function (req, res, next) {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ success: false, message: "Unauthorized: No user data" });
+        }
+
+        res.status(200).json({ success: true, user: req.user });
+    } catch (error) {
+        console.error("Profile Error:", error.message);
+        res.status(500).json({ success: false, message: "Profile fetch failed", error: error.message });
+    }
+};
+
+module.exports.home = async function (req, res, next) {
+    try {
+
+        const user = await usermodel.findById(req.user._id);
+
+        if (!user) {
+            return res.status(400).json({ success: false, message: "user not find" })
+        }
+
+        const suggestedlesson = await lessonmodel.find({ "lesson_category": user.userCategory })
+
+        if (!suggestedlesson) {
+            return res.status(400).json({ success: false, message: "suggestedlesson not find" })
+        }
+
+        const suggestedtutorial = await tutorialmodel.find({ "tutorial_category": user.userCategory })
+
+        if (!suggestedtutorial) {
+            return res.status(400).json({ success: false, message: "tutorial not find" })
+        }
+
+        const roadmaps = await roadmapmodel.find({ "roadmap_category": user.userCategory })
+
+        if (!roadmaps) {
+            return res.status(400).json({ success: false, message: "roadmaps not find" })
+        }
+
+
+        return res.status(200).json({
+            success: true,
+            message: "homepage success",
+            lessons: suggestedlesson,
+            tutorials: suggestedtutorial,
+            roadmaps: roadmaps
+        })
+
+
+
+    } catch (error) {
+        console.error("home Error:", error.message);
+        res.status(500).json({ success: false, message: "home fetch failed", error: error.message });
+    }
+
+};
+
+module.exports.quiz = async function (req, res, next) {
+    try {
+        const user = await usermodel.findById(req.user);
+
+        const quizes = await quizmodel.find({ "quizCategory": user.userCategory })
+        if (!quizes) {
+            return res.status(400).json({ success: false, message: "quizes not find" })
+        }
+        return res.status(200).json({ success: true, message: "quizes find", quizes: quizes })
+
+    } catch (error) {
+        console.error("quiz Error:", error.message);
+        res.status(500).json({ success: false, message: "quiz fetch failed", error: error.message });
+    }
+}
+
+module.exports.lesson = async function (req, res, next) {
+    try {
+
+        const lesson = await lessonmodel.find()
+
+        if (!lesson) {
+            return res.status(400).json({ success: false, message: " error lesson found" })
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: lesson.length === 0 ? "No lesson found" : "lesson found",
+            lessons: lesson
+        });
+
+    } catch (error) {
+        console.error("lesson Error:", error.message);
+        res.status(500).json({ success: false, message: "lesson fetch failed", error: error.message });
+    }
+}
+
+module.exports.edit_profile = async function (req, res, next) {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ message: "validationResult error", errors: errors.array(), success: false, })
+    }
+    try {
+        const { name, email, userCategory } = req.body;
+
+        const user = req.user;
+        if (!user) {
+            return res.status(400).json({ message: "url error", success: false, })
+        }
+
+        await usermodel.findOneAndUpdate({ _id: user._id }, { name, email, userCategory }, { new: true, runValidators: true })
+
+        const newuser = await usermodel.findById(user._id);
+
+        const token = generateToken(newuser)
+
+        res.cookie("userAuthToken", token, {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none',
+            maxAge: 3600000 * 24,
+        });
+
+        return res.status(200).json({ message: "user update", success: true, user: newuser });
+
+    } catch (error) {
+        console.error("editprofile Error:", error.message);
+        res.status(500).json({ success: false, message: "editProfile error", error: error.message });
+    }
 }
