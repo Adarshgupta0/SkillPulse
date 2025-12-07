@@ -3,7 +3,8 @@ const router = express.Router();
 const { userAuth } = require("../middlewares/userAuth");
 
 const { body } = require('express-validator');
-const { register, login, logout, forgot_password, otp_verify, change_password, profile, home, lesson, quiz, edit_profile } = require("../controllers/user.controllers")
+const { register, login, logout, forgot_password, otp_verify, change_password, profile,
+     home, lesson, quiz, edit_profile, tutorial, roadmap } = require("../controllers/user.controllers")
 const { otpAuth, changePassAuth } = require("../middlewares/changePassAuth")
 
 
@@ -74,6 +75,14 @@ router.post("/edit-profile", [
     body("name").isLength({ min: 3 }).withMessage("name must be at least 3 characters long"),
 ], userAuth,
    edit_profile
+)
+router.get("/tutorial",
+    userAuth,
+    tutorial
+)
+router.get("/roadmap",
+    userAuth,
+    roadmap
 )
 
 

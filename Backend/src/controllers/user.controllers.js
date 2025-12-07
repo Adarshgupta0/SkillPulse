@@ -168,7 +168,7 @@ Best regards,
             httpOnly: true,
             secure: false,
             sameSite: 'lax',
-            maxAge: 300000*2
+            maxAge: 300000 * 2
         });
 
         return res.status(200).json({ message: "OTP send successfully", user: user, success: true });
@@ -211,7 +211,7 @@ module.exports.otp_verify = async function (req, res, next) {
             httpOnly: true,
             secure: false,
             sameSite: 'lax',
-            maxAge: 300000*2
+            maxAge: 300000 * 2
         });
 
         res.clearCookie("otpAuthToken", {
@@ -389,5 +389,36 @@ module.exports.edit_profile = async function (req, res, next) {
     } catch (error) {
         console.error("editprofile Error:", error.message);
         res.status(500).json({ success: false, message: "editProfile error", error: error.message });
+    }
+}
+
+module.exports.tutorial = async function (req, res, next) {
+
+    try {
+        const tutorial = await tutorialmodel.find().sort({ _id: -1 });
+
+        if (!tutorial) {
+            return res.status(500).json({ success: false, message: "tutorial fetch failed" });
+        }
+        return res.status(200).json({ success: true, message: "tutorial fetch", tutorial: tutorial });
+
+    } catch (error) {
+        console.error("tutorial Error:", error.message);
+        res.status(500).json({ success: false, message: "tutorial fetch failed", error: error.message });
+    }
+}
+
+module.exports.roadmap = async function (req, res, next) {
+    try {
+        const roadmap = await roadmapmodel.find().sort({ _id: -1 });
+
+        if (!roadmap) {
+            return res.status(500).json({ success: false, message: "roadmap fetch failed" });
+        }
+        return res.status(200).json({ success: true, message: "roadmap fetch", roadmap: roadmap });
+
+    } catch (error) {
+        console.error("roadmap Error:", error.message);
+        res.status(500).json({ success: false, message: "roadmap fetch failed", error: error.message });
     }
 }
