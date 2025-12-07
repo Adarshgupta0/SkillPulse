@@ -1,13 +1,11 @@
 const { validationResult } = require('express-validator');
 const adminmodel = require("../models/admin.model");
+const usermodel = require("../models/user.model");
 const { createadmin } = require("../services/admin.create");
 const { hashPassword, comparePassword } = require("../services/hashPassword")
 const { generateToken } = require("../services/JwtToken");
 const AdminOtpModel = require("../models/admin.otp.model")
 const nodemailer = require("nodemailer");
-
-
-
 
 
 
@@ -173,7 +171,7 @@ Best regards,
 
         res.cookie("otpAuthToken", token, {
             httpOnly: true,
-          secure: true,
+            secure: true,
             sameSite: 'none',
             maxAge: 300000
         });
@@ -215,7 +213,7 @@ module.exports.otp_verify = async function (req, res, next) {
 
         res.cookie("changePassAuthToken", token, {
             httpOnly: true,
-           secure: true,
+            secure: true,
             sameSite: 'none',
             maxAge: 300000
         });
@@ -238,9 +236,7 @@ module.exports.otp_verify = async function (req, res, next) {
 
 }
 module.exports.change_password = async function (req, res, next) {
-
     try {
-
         const { newpassword } = req.body;
 
         const adminid = req.respassadminid;
@@ -267,4 +263,95 @@ module.exports.change_password = async function (req, res, next) {
         return res.status(504).json({ message: "changepassword error", error: error, success: false })
     }
 
+}
+
+module.exports.profile = async function (req, res, next) {
+    try {
+        const admin = req.admin;
+        if (!admin) {
+            return res.status(400).json({ success: false, message: "you need to login first" })
+        }
+        return res.status(200).json({ success: true, admin: admin })
+
+    } catch (error) {
+        res.status(400).json({ success: false, home: error.message })
+        console.log("Error:", error.message);
+    }
+}
+module.exports.edit_profile = async function (req, res, next) {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ message: "Input error", errors: errors.array(), success: false })
+    }
+
+    try {
+        const admin = await adminmodel.findById(req.admin._id);
+
+        const { name, email } = req.body;
+
+        await adminmodel.findOneAndUpdate(
+            { _id: admin._id },
+            { name: name, email: email },
+            { new: true, runValidators: true }
+        );
+
+        const newadmin = await adminmodel.findById(admin._id);
+
+        const token = generateToken(newadmin);
+
+
+        res.cookie("adminAuthToken", token, {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none',
+            maxAge: 3600000 * 24,
+        });
+
+
+        return res.status(200).json({ message: "admin update", success: true, admin: newadmin })
+
+
+
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message })
+        console.log("Error:", error.message);
+    }
+}
+module.exports.auth_check = async function (req, res, next) {
+    try {
+        if (!req.admin) {
+            return res.status(401).json({ success: false, message: "Unauthorized" });
+        }
+
+        res.status(200).json({ success: true, message: "Authorized" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "authcheck fetch failed", error: error.message });
+    }
+}
+
+module.exports.all_users = async function (req, res, next) {
+    try {
+        const allusers = await usermodel.find().sort({ _id: -1 });
+        if (!allusers) {
+            return res.status(400).json({ success: false, message: "User not found" })
+        }
+        return res.status(200).json({ success: true, allusers: allusers })
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message })
+        console.log("Error:", error.message);
+    }
+
+}
+module.exports.delete_user = async function (req, res, next) {
+    try {
+        const { userid } = req.params;
+        const user = await usermodel.findByIdAndDelete(userid);
+        if (!user) {
+            return res.status(400).json({ success: false, message: "user not found" })
+        }
+        return res.status(200).json({ success: true, message: "User deleted successfully!" })
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message })
+        console.log("Error:", error.message);
+    }
 }

@@ -30,7 +30,7 @@ router.post("/otp-verify",
     otpAuth,
     otp_verify
 )
-router.post("/change-password",
+router.put("/change-password",
     changePassAuth,
     change_password
 )
@@ -70,7 +70,7 @@ router.get("/lesson",
     userAuth,
     lesson
 )
-router.post("/edit-profile", [
+router.put("/edit-profile", [
     body("email").isEmail().withMessage("Invalid Email"),
     body("name").isLength({ min: 3 }).withMessage("name must be at least 3 characters long"),
 ], userAuth,

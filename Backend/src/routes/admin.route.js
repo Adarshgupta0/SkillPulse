@@ -1,7 +1,8 @@
 const express = require("express");
 const { body } = require('express-validator');
 const router = express.Router();
-const { register, login, logout, forgot_password, otp_verify, change_password } = require("../controllers/admin.controllers");
+const { register, login, logout, forgot_password, otp_verify, change_password, edit_profile, profile,
+     auth_check, all_users, delete_user } = require("../controllers/admin.controllers");
 const { adminAuth } = require("../middlewares/adminAuth")
 const { otpAuth, changePassAuth } = require("../middlewares/adminChangePassAuth")
 
@@ -28,7 +29,7 @@ router.post("/otp-verify",
     otpAuth,
     otp_verify
 )
-router.post("/change-password",
+router.put("/change-password",
     changePassAuth,
     change_password
 )
@@ -51,6 +52,27 @@ router.get("/check-changepassword-token",
             res.json({error: error})
         }
     }
+)
+router.get("/profile",
+    adminAuth,
+    profile
+)
+router.get("/auth-check",
+    adminAuth,
+    auth_check
+)
+router.put("/edit-profile", [
+    body("name").isLength({ min: 3 }).withMessage("name must be at least 3 characters long")],
+    adminAuth,
+    edit_profile
+)
+router.get("/all-users",
+    adminAuth,
+    all_users
+);
+router.delete("/delete-user/:userid",
+    adminAuth,
+    delete_user
 )
 
 
