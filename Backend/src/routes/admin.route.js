@@ -2,7 +2,7 @@ const express = require("express");
 const { body } = require('express-validator');
 const router = express.Router();
 const { register, login, logout, forgot_password, otp_verify, change_password, edit_profile, profile,
-     auth_check, all_users, delete_user } = require("../controllers/admin.controllers");
+     auth_check, all_users, delete_user, quiz_create, all_quizzes, quiz_update, quiz_delete } = require("../controllers/admin.controllers");
 const { adminAuth } = require("../middlewares/adminAuth")
 const { otpAuth, changePassAuth } = require("../middlewares/adminChangePassAuth")
 
@@ -73,6 +73,22 @@ router.get("/all-users",
 router.delete("/delete-user/:userid",
     adminAuth,
     delete_user
+)
+router.post("/quiz-create",
+    adminAuth,
+    quiz_create
+)
+router.get("/all-quizzes",
+    adminAuth,
+    all_quizzes
+)
+router.post("/quiz-update/:quizId",
+    adminAuth,
+    quiz_update
+)
+router.get("/quiz-delete/:quizId",
+    adminAuth,
+    quiz_delete
 )
 
 

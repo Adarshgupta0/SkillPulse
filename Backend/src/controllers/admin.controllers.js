@@ -1,6 +1,7 @@
 const { validationResult } = require('express-validator');
 const adminmodel = require("../models/admin.model");
 const usermodel = require("../models/user.model");
+const quizmodel = require("../models//quiz.model");
 const { createadmin } = require("../services/admin.create");
 const { hashPassword, comparePassword } = require("../services/hashPassword")
 const { generateToken } = require("../services/JwtToken");
@@ -352,6 +353,98 @@ module.exports.delete_user = async function (req, res, next) {
         return res.status(200).json({ success: true, message: "User deleted successfully!" })
     } catch (error) {
         res.status(400).json({ success: false, message: error.message })
+        console.log("Error:", error.message);
+    }
+}
+
+module.exports.quiz_create = async function (req, res, next) {
+
+    try {
+
+        const { quiz, quizCategory, options } = req.body;
+
+        if (!quiz || !Array.isArray(options) || options.length !== 4) {
+            return res.status(400).json({ message: "Quiz must have 4 options", success: false });
+        }
+
+        const correctCount = options.filter(opt => opt.isCorrect).length;
+        if (correctCount !== 1) {
+            return res.status(400).json({ message: "Exactly one option must be correct", success: false });
+        }
+
+        const newquiz = await quizmodel.create({ quiz, quizCategory, options });
+
+        return res.status(201).json({ success: true, message: "Quiz created", quiz: newquiz });
+
+
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message })
+        console.log("Error:", error.message);
+    }
+
+
+
+}
+module.exports.all_quizzes = async function (req, res, next) {
+    try {
+        const allquizs = await quizmodel.find().sort({ _id: -1 });
+        if (!allquizs) {
+            return res.status(400).json({ success: false, message: "User not found" })
+        }
+        return res.status(200).json({ success: true, allquizs: allquizs })
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message })
+        console.log("Error:", error.message);
+    }
+}
+module.exports.quiz_update = async function (req, res, next) {
+    try {
+        const { quiz, quizCategory, options } = req.body;
+        const { quizId } = req.params;
+
+        const quizcheak = await quizmodel.findById(quizId);
+
+        if (!quizcheak) return res.status(400).json({ message: "quiz not found", success: false });
+
+
+        if (!quiz || !Array.isArray(options) || options.length !== 4 || !quizCategory) {
+            return res.status(400).json({ message: "Quiz must have 4 options", success: false });
+        }
+
+        const correctCount = options.filter(opt => opt.isCorrect).length;
+        if (correctCount !== 1) {
+            return res.status(400).json({ message: "Exactly one option must be correct", success: false });
+        }
+
+        const updatequiz = await quizmodel.findByIdAndUpdate(quizId, { $set: { quiz: quiz, quizCategory: quizCategory, options: options } }, { new: true, runValidators: true })
+
+        if (!updatequiz) return res.status(400).json({ message: "quiz updating error", success: false });
+
+        const allquizs = await quizmodel.find().sort({ _id: -1 });
+
+        if (!allquizs) {
+            return res.status(400).json({ success: false, message: "allquizs not found" })
+        }
+
+        return res.status(200).json({ message: "quiz updated", success: true, allquizs: allquizs });
+
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message })
+        console.log("Error:", error.message);
+
+    }
+}
+module.exports.quiz_delete = async function (req, res, next) {
+
+    try {
+        const { quizId } = req.params;
+        const quiz = await quizmodel.findByIdAndDelete(quizId);
+        if (!quiz) {
+            return res.status(400).json({ success: false, message: "URL is incorrect" })
+        }
+        return res.status(200).json({ success: true, message: "quiz deleted successfully!" })
+    } catch (error) {
+        res.status(400).json({ success: false, message: "quiz delete error", error: error.message })
         console.log("Error:", error.message);
     }
 }
