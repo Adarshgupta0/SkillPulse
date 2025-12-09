@@ -4,7 +4,7 @@ const { userAuth } = require("../middlewares/userAuth");
 
 const { body } = require('express-validator');
 const { register, login, logout, forgot_password, otp_verify, change_password, profile,
-     home, lesson, quiz, edit_profile, tutorial, roadmap } = require("../controllers/user.controllers")
+     home, lesson, quiz, edit_profile, tutorial, roadmap, auth_check } = require("../controllers/user.controllers")
 const { otpAuth, changePassAuth } = require("../middlewares/changePassAuth")
 
 
@@ -57,6 +57,10 @@ router.get("/check-changepassword-token",
 router.get("/profile",
     userAuth,
     profile
+)
+router.get("/auth-check",
+    userAuth,
+    auth_check
 )
 router.get("/home",
     userAuth,

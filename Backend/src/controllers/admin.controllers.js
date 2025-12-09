@@ -7,6 +7,9 @@ const { hashPassword, comparePassword } = require("../services/hashPassword")
 const { generateToken } = require("../services/JwtToken");
 const AdminOtpModel = require("../models/admin.otp.model")
 const nodemailer = require("nodemailer");
+const sharp = require("sharp");
+const cloudinary = require("../utils/cloudinary");
+const lessonmodel = require("../models/lesson.model")
 
 
 
@@ -252,7 +255,6 @@ module.exports.change_password = async function (req, res, next) {
 
         res.clearCookie("changePassAuthToken", {
             httpOnly: true,
-            // secure: process.env.NODE_ENV === "production",
             sameSite: "strict"
         });
 
@@ -448,3 +450,188 @@ module.exports.quiz_delete = async function (req, res, next) {
         console.log("Error:", error.message);
     }
 }
+
+module.exports.lesson_create = async function (req, res, next) {
+    try {
+        const { title, description, lessonlink, lesson_category } = req.body;
+        const thumbnail = req.file?.buffer;
+
+        // Validate input
+        if (!thumbnail) {
+            return res.status(400).json({ message: "Thumbnail required", success: false });
+        }
+        if (!title || !description || !lessonlink || !lesson_category) {
+            return res.status(400).json({ message: "All fields are required", success: false });
+        }
+
+        // Optimize image
+        const optimizedImageBuffer = await sharp(thumbnail)
+            .resize({ width: 800, height: 800 })
+            .toFormat("jpeg", { quality: 80 })
+            .toBuffer();
+
+        // Convert to Data URI
+        const fileUri = `data:image/jpeg;base64,${optimizedImageBuffer.toString("base64")}`;
+
+        // Upload to Cloudinary
+        const cloudResponse = await cloudinary.uploader.upload(fileUri, {
+            folder: "lessons", // optional: organize in Cloudinary
+            overwrite: true,
+        });
+
+        // Save lesson in DB
+        const lesson = await lessonmodel.create({
+            title,
+            description,
+            lessonlink,
+            thumbnail: cloudResponse.secure_url,
+            public_thumbnail: cloudResponse.public_id,
+            lesson_category,
+        });
+
+        if (!lesson) {
+            return res.status(500).json({ message: "lesson not created", success: false });
+        }
+
+        // Success response
+        return res.status(201).json({
+            message: "lesson created successfully",
+            success: true,
+            lesson: lesson,
+        });
+
+    } catch (error) {
+        console.error("lessoncreate Error:", error.message);
+        return res.status(500).json({ success: false, message: error.message, error: error });
+    }
+};
+module.exports.all_lessons = async function (req, res, next) {
+    try {
+        const alllesson = await lessonmodel.find().sort({ _id: -1 });
+
+        if (!alllesson || alllesson.length === 0) {
+            return res.status(404).json({ success: false, message: "No lessons found" });
+        }
+
+        return res.status(200).json({
+            success: true,
+            count: alllesson.length, // optional: total lesson
+            lessons: alllesson
+        });
+
+    } catch (error) {
+        console.error("Get All lessons Error:", error.message);
+        return res.status(500).json({ success: false, message: error.message });
+    }
+
+}
+module.exports.lesson_update = async function (req, res, next) {
+    try {
+        const { lessonId } = req.params; // lesson id from URL
+        const { title, description, lessonlink, lesson_category } = req.body;
+
+        const lesson = await lessonmodel.findById(lessonId);
+        if (!lesson) {
+            return res.status(404).json({ success: false, message: "lesson not found" });
+        }
+
+        if (!title || !description || !lessonlink || !lesson_category) {
+            return res.status(400).json({ message: "All fields are required", success: false });
+        }
+
+        let updatedThumbnail;
+        let public_thumbnail;
+
+        // If new thumbnail uploaded → optimize + upload
+        if (req.file?.buffer) {
+            if (lesson.public_thumbnail) {
+                await cloudinary.uploader.destroy(lesson.public_thumbnail);
+
+            }
+
+            const optimizedImageBuffer = await sharp(req.file.buffer)
+                .resize({ width: 800, height: 800 })
+                .toFormat("jpeg", { quality: 80 })
+                .toBuffer();
+
+
+
+            const fileUri = `data:image/jpeg;base64,${optimizedImageBuffer.toString("base64")}`;
+            const cloudResponse = await cloudinary.uploader.upload(fileUri, {
+                folder: "lessons",
+                overwrite: true,
+            });
+
+            updatedThumbnail = cloudResponse.secure_url;
+            public_thumbnail = cloudResponse.public_id;
+        }
+
+        // Update lesson using findByIdAndUpdate
+        const updatedlesson = await lessonmodel.findByIdAndUpdate(
+            lessonId,
+            {
+                title,
+                description,
+                lessonlink,
+                lesson_category,
+                ...(public_thumbnail && { public_thumbnail: public_thumbnail }),
+                ...(updatedThumbnail && { thumbnail: updatedThumbnail })
+            },
+            { new: true } // return updated document
+        );
+
+        if (!updatedlesson) {
+            return res.status(404).json({ success: false, message: "lesson not found" });
+        }
+
+        const alllesson = await lessonmodel.find().sort({ _id: -1 });
+
+        if (!alllesson || alllesson.length === 0) {
+            return res.status(404).json({ success: false, message: "No lesson found" });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "lesson updated successfully",
+            lessons: alllesson 
+        });
+
+    } catch (error) {
+        console.error("lesson Edit Error:", error.message);
+        return res.status(500).json({ success: false, message: "Internal server error" });
+    }
+};
+module.exports.lesson_delete = async function (req, res, next) {
+    try {
+        const { lessonId } = req.params;
+
+        // Find lesson first
+        const lesson = await lessonmodel.findById(lessonId);
+        if (!lesson) {
+            return res.status(404).json({ success: false, message: "lesson not found" });
+        }
+
+        // Optional: delete old image from Cloudinary
+        if (lesson.thumbnail) {
+            try {
+                // Extract public_id from Cloudinary URL
+                const publicId = lesson.public_thumbnail;
+                await cloudinary.uploader.destroy(publicId);
+            } catch (err) {
+                console.warn("Cloudinary delete failed:", err.message);
+            }
+        }
+
+        // Delete lesson from DB
+        await lessonmodel.findByIdAndDelete(lessonId);
+
+        return res.status(200).json({
+            success: true,
+            message: "Lessons deleted successfully!",
+        });
+
+    } catch (error) {
+        console.error("lesson Delete Error:", error.message);
+        return res.status(500).json({ success: false, message: "Internal server error" });
+    }
+};

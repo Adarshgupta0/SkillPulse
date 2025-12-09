@@ -422,3 +422,15 @@ module.exports.roadmap = async function (req, res, next) {
         res.status(500).json({ success: false, message: "roadmap fetch failed", error: error.message });
     }
 }
+
+module.exports.auth_check = async function (req, res, next) {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ success: false, message: "Unauthorized" });
+        }
+
+        res.status(200).json({ success: true, message: "Authorized" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "authcheck fetch failed", error: error.message });
+    }
+}
