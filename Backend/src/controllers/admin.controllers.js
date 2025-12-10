@@ -10,6 +10,7 @@ const nodemailer = require("nodemailer");
 const sharp = require("sharp");
 const cloudinary = require("../utils/cloudinary");
 const lessonmodel = require("../models/lesson.model")
+const tutorialmodel = require("../models/tutorial.model")
 
 
 
@@ -635,3 +636,84 @@ module.exports.lesson_delete = async function (req, res, next) {
         return res.status(500).json({ success: false, message: "Internal server error" });
     }
 };
+
+module.exports.tutorial_create = async function (req, res, next) {
+
+    try {
+        const { title, description, icon, channelname, link, tutorial_category } = req.body;
+        if (!title || !description || !icon || !channelname || !link || !tutorial_category) {
+            return res.status(400).json({ success: false, message: "All fields are required" })
+        }
+
+        const tutorial = await tutorialmodel.create({
+            title,
+            description,
+            icon,
+            link,
+            channelname,
+            tutorial_category
+        });
+
+        if (!tutorial) {
+            return res.status(400).json({ message: "tutorial not created", success: false })
+        }
+        return res.status(200).json({ message: "tutorial created", success: true, tutorial: tutorial })
+
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message })
+        console.log("tutorial Error:", error.message);
+    }
+}
+module.exports.all_tutorials = async function (req, res, next) {
+    try {
+        const alltutorial = await tutorialmodel.find().sort({ _id: -1 });
+        if (!alltutorial) {
+            return res.status(400).json({ success: false, message: "User not found" })
+        }
+        return res.status(200).json({ success: true, alltutorial: alltutorial })
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message })
+        console.log("Error:", error.message);
+    }
+}
+module.exports.tutorial_update = async function (req, res, next) {
+    try {
+        const { title, icon, channelname, link, tutorial_category, description } = req.body;
+        const { tutorialId } = req.params;
+
+        const tutorialheak = await tutorialmodel.findById(tutorialId);
+
+        if (!tutorialheak) return res.status(400).json({ message: "tutorial not found", success: false });
+
+
+        const updatetutorial = await tutorialmodel.findByIdAndUpdate(tutorialId, { $set: { title, icon, link, description, tutorial_category, channelname } }, { new: true, runValidators: true })
+
+        if (!updatetutorial) return res.status(400).json({ message: "tutorial updating error", success: false });
+
+        const alltutorial = await tutorialmodel.find().sort({ _id: -1 });
+        if (!alltutorial) {
+            return res.status(400).json({ success: false, message: "User not found" })
+        }
+
+        return res.status(200).json({ message: "tutorial updated", success: true, alltutorial: alltutorial });
+
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message })
+        console.log("Error:", error.message);
+
+    }
+}
+module.exports.tutorial_delete = async function (req, res, next) {
+
+    try {
+        const { tutorialId } = req.params;
+        const tutorial = await tutorialmodel.findByIdAndDelete(tutorialId);
+        if (!tutorial) {
+            return res.status(400).json({ success: false, message: "tutorial not found" })
+        }
+        return res.status(200).json({ success: true, tutorial: tutorial, message: "Tutorial deleted successfully!" })
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message })
+        console.log("Error:", error.message);
+    }
+}

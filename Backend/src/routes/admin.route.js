@@ -3,7 +3,7 @@ const { body } = require('express-validator');
 const router = express.Router();
 const { register, login, logout, forgot_password, otp_verify, change_password, edit_profile, profile,
     auth_check, all_users, delete_user, quiz_create, all_quizzes, quiz_update, quiz_delete, lesson_create,
-     all_lessons, lesson_update, lesson_delete } = require("../controllers/admin.controllers");
+     all_lessons, lesson_update, lesson_delete, tutorial_create, all_tutorials, tutorial_update, tutorial_delete } = require("../controllers/admin.controllers");
 const { adminAuth } = require("../middlewares/adminAuth")
 const { otpAuth, changePassAuth } = require("../middlewares/adminChangePassAuth")
 const uplode = require("../middlewares/multer");
@@ -114,6 +114,22 @@ router.delete("/lesson-delete/:lessonId",
     lesson_delete
 )
 
+router.post("/tutorial-create",
+    adminAuth,
+    tutorial_create
+)
+router.get("/all-tutorial",
+    adminAuth,
+    all_tutorials
+)
+router.put("/tutorial-update/:tutorialId",
+    adminAuth,
+    tutorial_update
+)
+router.delete("/tutorial-delete/:tutorialId",
+    adminAuth,
+    tutorial_delete
+)
 
 
 module.exports = router;
