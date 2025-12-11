@@ -3,7 +3,8 @@ const { body } = require('express-validator');
 const router = express.Router();
 const { register, login, logout, forgot_password, otp_verify, change_password, edit_profile, profile,
     auth_check, all_users, delete_user, quiz_create, all_quizzes, quiz_update, quiz_delete, lesson_create,
-     all_lessons, lesson_update, lesson_delete, tutorial_create, all_tutorials, tutorial_update, tutorial_delete } = require("../controllers/admin.controllers");
+     all_lessons, lesson_update, lesson_delete, tutorial_create, all_tutorials, tutorial_update, tutorial_delete, 
+     roadmap_create, all_roadmaps, roadmap_update, roadmap_delete } = require("../controllers/admin.controllers");
 const { adminAuth } = require("../middlewares/adminAuth")
 const { otpAuth, changePassAuth } = require("../middlewares/adminChangePassAuth")
 const uplode = require("../middlewares/multer");
@@ -129,6 +130,23 @@ router.put("/tutorial-update/:tutorialId",
 router.delete("/tutorial-delete/:tutorialId",
     adminAuth,
     tutorial_delete
+)
+
+router.post("/roadmap-create",
+    adminAuth,
+    roadmap_create
+)
+router.get("/all-roadmap",
+    adminAuth,
+    all_roadmaps
+)
+router.put("/roadmap-update/:roadmapId",
+    adminAuth,
+    roadmap_update
+)
+router.delete("/roadmap-delete/:roadmapId",
+    adminAuth,
+    roadmap_delete
 )
 
 

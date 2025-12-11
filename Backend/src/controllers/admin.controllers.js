@@ -11,6 +11,7 @@ const sharp = require("sharp");
 const cloudinary = require("../utils/cloudinary");
 const lessonmodel = require("../models/lesson.model")
 const tutorialmodel = require("../models/tutorial.model")
+const roadmapmodel = require("../models/roadmap.model")
 
 
 
@@ -712,6 +713,88 @@ module.exports.tutorial_delete = async function (req, res, next) {
             return res.status(400).json({ success: false, message: "tutorial not found" })
         }
         return res.status(200).json({ success: true, tutorial: tutorial, message: "Tutorial deleted successfully!" })
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message })
+        console.log("Error:", error.message);
+    }
+}
+
+module.exports.roadmap_create = async function (req, res, next) {
+    try {
+        const { title, description, icon, link, roadmap_category } = req.body;
+        if (!title || !description || !icon || !link || !roadmap_category) {
+            return res.status(400).json({ success: false, message: "All fields are required" })
+        }
+        const newroadmap = await roadmapmodel.create({
+            title,
+            description,
+            icon,
+            link,
+            roadmap_category
+        })
+
+        if (!newroadmap) {
+            return res.status(400).json({ success: false, message: "roadmap create error" })
+        }
+        return res.status(200).json({ success: true, message: "roadmap created", roadmap: newroadmap })
+
+
+
+    } catch (error) {
+        res.status(400).json({ success: false, roadmap: error.message })
+        console.log("roadmap Error:", error.message);
+    }
+
+}
+module.exports.all_roadmaps = async function (req, res, next) {
+    try {
+        const allroadmap = await roadmapmodel.find().sort({ _id: -1 });
+        if (!allroadmap) {
+            return res.status(400).json({ success: false, message: "roadmap not found" })
+        }
+        return res.status(200).json({ success: true, allroadmap: allroadmap })
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message })
+        console.log("Error:", error.message);
+    }
+}
+module.exports.roadmap_update = async function (req, res, next) {
+    try {
+        const { title, icon, link, roadmap_category, description } = req.body;
+        const { roadmapId } = req.params;
+
+        const roadmapcheak = await roadmapmodel.findById(roadmapId);
+
+        if (!roadmapcheak) return res.status(400).json({ message: "roadmap not found", success: false });
+
+
+        const updateroadmap = await roadmapmodel.findByIdAndUpdate(roadmapId, { $set: { title, icon, link, roadmap_category, description } }, { new: true, runValidators: true })
+
+        if (!updateroadmap) return res.status(400).json({ message: "roadmap updating error", success: false });
+
+        const allroadmap = await roadmapmodel.find().sort({ _id: -1 });
+        if (!allroadmap) {
+            return res.status(400).json({ success: false, message: "roadmap not found" })
+        }
+
+        return res.status(200).json({ message: "roadmap updated", success: true, allroadmap: allroadmap });
+
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message })
+        console.log("Error:", error.message);
+
+    }
+}
+module.exports.roadmap_delete = async function (req, res, next) {
+    try {
+        const { roadmapId } = req.params;
+
+        const roadmap = await roadmapmodel.findByIdAndDelete(roadmapId)
+        if (!roadmap) {
+            return res.status(400).json({ success: false, message: "roadmap not found" })
+        }
+        return res.status(200).json({ success: true, message: "roadmap deleted successfully!" })
+
     } catch (error) {
         res.status(400).json({ success: false, message: error.message })
         console.log("Error:", error.message);
