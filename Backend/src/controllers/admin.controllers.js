@@ -32,7 +32,7 @@ module.exports.register = async function (req, res, next) {
 
         const cheakbyemail = await adminmodel.findOne({ email })
         if (cheakbyemail) {
-            return res.status(400).json({ message: "You already have an account, please login", success: false });
+            return res.status(409).json({ message: "You already have an account, please login", success: false });
         }
 
         const hashpass = await hashPassword(password);
@@ -43,8 +43,8 @@ module.exports.register = async function (req, res, next) {
 
         res.cookie("adminAuthToken", token, {
             httpOnly: true,
-            secure: false,
-            sameSite: 'lax',
+            secure: true,
+            sameSite: "none",
             maxAge: 3600000 * 24,
         });
 
@@ -54,12 +54,9 @@ module.exports.register = async function (req, res, next) {
             admin: admin
         });
 
-
-
-
     } catch (error) {
-        res.json({ success: false, registerError: error.message })
-        console.log("Error:", error.message);
+        console.error(error);
+        res.status(500).json({ success: false, message: "Internal server error" })
     }
 }
 module.exports.login = async function (req, res, next) {
@@ -73,34 +70,32 @@ module.exports.login = async function (req, res, next) {
 
         const admin = await adminmodel.findOne({ email }).select('+password');
         if (!admin) {
-            return res.status(400).json({ message: "invaled email or password", success: false });
+            return res.status(401).json({ message: "invaled email or password", success: false });
         }
 
         const isPasswordCorrect = await comparePassword(password, admin.password)
         if (!isPasswordCorrect) {
-            return res.status(400).json({ message: "invaled email or password", success: false });
+            return res.status(401).json({ message: "invaled email or password", success: false });
         }
 
         const token = generateToken(admin);
 
         res.cookie("adminAuthToken", token, {
             httpOnly: true,
-            secure: false,
-            sameSite: 'lax',
+            secure: true,
+            sameSite: "none",
             maxAge: 3600000 * 24,
         });
 
-        return res.status(201).json({
+        return res.status(200).json({
             success: true,
             message: "Account login",
             admin: admin
         });
 
-
-
     } catch (error) {
-        res.json({ success: false, registerError: error.message })
-        console.log("Error:", error.message);
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 
 }
@@ -108,12 +103,13 @@ module.exports.logout = async function (req, res, next) {
     try {
         res.clearCookie("adminAuthToken", {
             httpOnly: true,
-            sameSite: "strict"
+            secure: true,
+            sameSite: "none",
         });
         return res.status(200).json({ success: true, message: "Logout successful" });
     } catch (error) {
-        console.error("Logout Error:", error.message);
-        return res.status(500).json({ success: false, message: "Logout failed", error: error.message });
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 
 };
@@ -121,16 +117,14 @@ module.exports.logout = async function (req, res, next) {
 module.exports.forgot_password = async function (req, res, next) {
 
     try {
-        // console.log(process.env.NODEMAIL_PASS);
 
         const { email } = req.body;
 
-        // Check if the admin already exists
 
         const admin = await adminmodel.findOne({ email: email })
 
         if (!admin) {
-            return res.status(401).json({ message: "admin not found", success: false });
+            return res.status(404).json({ message: "admin not found", success: false });
         }
 
         const otp = `${Math.floor(100000 + Math.random() * 900000)}`;
@@ -186,8 +180,8 @@ Best regards,
 
 
     } catch (error) {
-        console.error("foundadmin error", error.message);
-        return res.status(504).json({ message: "foundadmin error", error: error, success: false })
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
 
     }
 
@@ -203,14 +197,14 @@ module.exports.otp_verify = async function (req, res, next) {
         const adminid = req.fogpassadminid;
         const admin = await adminmodel.findById(adminid);
         if (!admin) {
-            return res.status(401).json({ message: "admin not found", success: false });
+            return res.status(404).json({ message: "admin not found", success: false });
         }
 
         const adminofotp = await AdminOtpModel.findOne({ email: admin.email })
         const admindbotp = adminofotp.otp;
 
         if (parseInt(otp) !== parseInt(admindbotp)) {
-            return res.status(401).json({ message: "Invalid OTP", success: false });
+            return res.status(400).json({ message: "Invalid OTP", success: false });
         }
 
         await AdminOtpModel.deleteOne({ _id: adminofotp._id });
@@ -226,17 +220,16 @@ module.exports.otp_verify = async function (req, res, next) {
 
         res.clearCookie("otpAuthToken", {
             httpOnly: true,
-            sameSite: "strict"
+            secure: true,
+            sameSite: "none",
         });
-
-
 
         return res.status(200).json({ message: "valed OTP", success: true });
 
 
     } catch (error) {
-        console.error("otpverify error", error.message);
-        return res.status(504).json({ message: "otpverify error", error: error, success: false })
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
 
     }
 
@@ -248,7 +241,7 @@ module.exports.change_password = async function (req, res, next) {
         const adminid = req.respassadminid;
         const admin = await adminmodel.findById(adminid);
         if (!admin) {
-            return res.status(401).json({ message: "admin not found", success: false });
+            return res.status(404).json({ message: "admin not found", success: false });
         }
 
         const hashedPassword = await hashPassword(newpassword);
@@ -257,15 +250,16 @@ module.exports.change_password = async function (req, res, next) {
 
         res.clearCookie("changePassAuthToken", {
             httpOnly: true,
-            sameSite: "strict"
+            secure: true,
+            sameSite: "none",
         });
 
-        return res.status(200).json({ message: "Password updated successfully", success: true })
+        return res.status(201).json({ message: "Password updated successfully", success: true })
 
 
     } catch (error) {
-        console.error("changepassword error", error.message);
-        return res.status(504).json({ message: "changepassword error", error: error, success: false })
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 
 }
@@ -274,13 +268,13 @@ module.exports.profile = async function (req, res, next) {
     try {
         const admin = req.admin;
         if (!admin) {
-            return res.status(400).json({ success: false, message: "you need to login first" })
+            return res.status(401).json({ success: false, message: "you need to login first" })
         }
         return res.status(200).json({ success: true, admin: admin })
 
     } catch (error) {
-        res.status(400).json({ success: false, home: error.message })
-        console.log("Error:", error.message);
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
 module.exports.edit_profile = async function (req, res, next) {
@@ -318,8 +312,8 @@ module.exports.edit_profile = async function (req, res, next) {
 
 
     } catch (error) {
-        res.status(400).json({ success: false, message: error.message })
-        console.log("Error:", error.message);
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
 module.exports.auth_check = async function (req, res, next) {
@@ -330,7 +324,8 @@ module.exports.auth_check = async function (req, res, next) {
 
         res.status(200).json({ success: true, message: "Authorized" });
     } catch (error) {
-        res.status(500).json({ success: false, message: "authcheck fetch failed", error: error.message });
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
 
@@ -342,8 +337,8 @@ module.exports.all_users = async function (req, res, next) {
         }
         return res.status(200).json({ success: true, allusers: allusers })
     } catch (error) {
-        res.status(400).json({ success: false, message: error.message })
-        console.log("Error:", error.message);
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 
 }
@@ -356,8 +351,8 @@ module.exports.delete_user = async function (req, res, next) {
         }
         return res.status(200).json({ success: true, message: "User deleted successfully!" })
     } catch (error) {
-        res.status(400).json({ success: false, message: error.message })
-        console.log("Error:", error.message);
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
 
@@ -368,12 +363,12 @@ module.exports.quiz_create = async function (req, res, next) {
         const { quiz, quizCategory, options } = req.body;
 
         if (!quiz || !Array.isArray(options) || options.length !== 4) {
-            return res.status(400).json({ message: "Quiz must have 4 options", success: false });
+            return res.status(401).json({ message: "Quiz must have 4 options", success: false });
         }
 
         const correctCount = options.filter(opt => opt.isCorrect).length;
         if (correctCount !== 1) {
-            return res.status(400).json({ message: "Exactly one option must be correct", success: false });
+            return res.status(401).json({ message: "Exactly one option must be correct", success: false });
         }
 
         const newquiz = await quizmodel.create({ quiz, quizCategory, options });
@@ -382,8 +377,8 @@ module.exports.quiz_create = async function (req, res, next) {
 
 
     } catch (error) {
-        res.status(400).json({ success: false, message: error.message })
-        console.log("Error:", error.message);
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 
 
@@ -397,8 +392,8 @@ module.exports.all_quizzes = async function (req, res, next) {
         }
         return res.status(200).json({ success: true, allquizs: allquizs })
     } catch (error) {
-        res.status(400).json({ success: false, message: error.message })
-        console.log("Error:", error.message);
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
 module.exports.quiz_update = async function (req, res, next) {
@@ -412,12 +407,12 @@ module.exports.quiz_update = async function (req, res, next) {
 
 
         if (!quiz || !Array.isArray(options) || options.length !== 4 || !quizCategory) {
-            return res.status(400).json({ message: "Quiz must have 4 options", success: false });
+            return res.status(401).json({ message: "Quiz must have 4 options", success: false });
         }
 
         const correctCount = options.filter(opt => opt.isCorrect).length;
         if (correctCount !== 1) {
-            return res.status(400).json({ message: "Exactly one option must be correct", success: false });
+            return res.status(401).json({ message: "Exactly one option must be correct", success: false });
         }
 
         const updatequiz = await quizmodel.findByIdAndUpdate(quizId, { $set: { quiz: quiz, quizCategory: quizCategory, options: options } }, { new: true, runValidators: true })
@@ -427,14 +422,14 @@ module.exports.quiz_update = async function (req, res, next) {
         const allquizs = await quizmodel.find().sort({ _id: -1 });
 
         if (!allquizs) {
-            return res.status(400).json({ success: false, message: "allquizs not found" })
+            return res.status(400).json({ success: false, message: "quizzes not found" })
         }
 
         return res.status(200).json({ message: "quiz updated", success: true, allquizs: allquizs });
 
     } catch (error) {
-        res.status(400).json({ success: false, message: error.message })
-        console.log("Error:", error.message);
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
 
     }
 }
@@ -448,8 +443,8 @@ module.exports.quiz_delete = async function (req, res, next) {
         }
         return res.status(200).json({ success: true, message: "quiz deleted successfully!" })
     } catch (error) {
-        res.status(400).json({ success: false, message: "quiz delete error", error: error.message })
-        console.log("Error:", error.message);
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
 
@@ -503,8 +498,8 @@ module.exports.lesson_create = async function (req, res, next) {
         });
 
     } catch (error) {
-        console.error("lessoncreate Error:", error.message);
-        return res.status(500).json({ success: false, message: error.message, error: error });
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 };
 module.exports.all_lessons = async function (req, res, next) {
@@ -522,8 +517,8 @@ module.exports.all_lessons = async function (req, res, next) {
         });
 
     } catch (error) {
-        console.error("Get All lessons Error:", error.message);
-        return res.status(500).json({ success: false, message: error.message });
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 
 }
@@ -595,11 +590,11 @@ module.exports.lesson_update = async function (req, res, next) {
         return res.status(200).json({
             success: true,
             message: "lesson updated successfully",
-            lessons: alllesson 
+            lessons: alllesson
         });
 
     } catch (error) {
-        console.error("lesson Edit Error:", error.message);
+       console.error(error);
         return res.status(500).json({ success: false, message: "Internal server error" });
     }
 };
@@ -633,7 +628,7 @@ module.exports.lesson_delete = async function (req, res, next) {
         });
 
     } catch (error) {
-        console.error("lesson Delete Error:", error.message);
+        console.error(error);
         return res.status(500).json({ success: false, message: "Internal server error" });
     }
 };
@@ -656,25 +651,25 @@ module.exports.tutorial_create = async function (req, res, next) {
         });
 
         if (!tutorial) {
-            return res.status(400).json({ message: "tutorial not created", success: false })
+            return res.status(500).json({ message: "tutorial not created", success: false })
         }
-        return res.status(200).json({ message: "tutorial created", success: true, tutorial: tutorial })
+        return res.status(201).json({ message: "tutorial created", success: true, tutorial: tutorial })
 
     } catch (error) {
-        res.status(400).json({ success: false, message: error.message })
-        console.log("tutorial Error:", error.message);
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
 module.exports.all_tutorials = async function (req, res, next) {
     try {
         const alltutorial = await tutorialmodel.find().sort({ _id: -1 });
         if (!alltutorial) {
-            return res.status(400).json({ success: false, message: "User not found" })
+            return res.status(404).json({ success: false, message: "User not found" })
         }
         return res.status(200).json({ success: true, alltutorial: alltutorial })
     } catch (error) {
-        res.status(400).json({ success: false, message: error.message })
-        console.log("Error:", error.message);
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
 module.exports.tutorial_update = async function (req, res, next) {
@@ -684,23 +679,23 @@ module.exports.tutorial_update = async function (req, res, next) {
 
         const tutorialheak = await tutorialmodel.findById(tutorialId);
 
-        if (!tutorialheak) return res.status(400).json({ message: "tutorial not found", success: false });
+        if (!tutorialheak) return res.status(404).json({ message: "tutorial not found", success: false });
 
 
         const updatetutorial = await tutorialmodel.findByIdAndUpdate(tutorialId, { $set: { title, icon, link, description, tutorial_category, channelname } }, { new: true, runValidators: true })
 
-        if (!updatetutorial) return res.status(400).json({ message: "tutorial updating error", success: false });
+        if (!updatetutorial) return res.status(500).json({ message: "tutorial updating error", success: false });
 
         const alltutorial = await tutorialmodel.find().sort({ _id: -1 });
         if (!alltutorial) {
-            return res.status(400).json({ success: false, message: "User not found" })
+            return res.status(404).json({ success: false, message: "User not found" })
         }
 
         return res.status(200).json({ message: "tutorial updated", success: true, alltutorial: alltutorial });
 
     } catch (error) {
-        res.status(400).json({ success: false, message: error.message })
-        console.log("Error:", error.message);
+       console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
 
     }
 }
@@ -710,12 +705,12 @@ module.exports.tutorial_delete = async function (req, res, next) {
         const { tutorialId } = req.params;
         const tutorial = await tutorialmodel.findByIdAndDelete(tutorialId);
         if (!tutorial) {
-            return res.status(400).json({ success: false, message: "tutorial not found" })
+            return res.status(404).json({ success: false, message: "tutorial not found" })
         }
         return res.status(200).json({ success: true, tutorial: tutorial, message: "Tutorial deleted successfully!" })
     } catch (error) {
-        res.status(400).json({ success: false, message: error.message })
-        console.log("Error:", error.message);
+       console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
 
@@ -734,15 +729,15 @@ module.exports.roadmap_create = async function (req, res, next) {
         })
 
         if (!newroadmap) {
-            return res.status(400).json({ success: false, message: "roadmap create error" })
+            return res.status(500).json({ success: false, message: "roadmap create error" })
         }
-        return res.status(200).json({ success: true, message: "roadmap created", roadmap: newroadmap })
+        return res.status(201).json({ success: true, message: "roadmap created", roadmap: newroadmap })
 
 
 
     } catch (error) {
-        res.status(400).json({ success: false, roadmap: error.message })
-        console.log("roadmap Error:", error.message);
+       console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 
 }
@@ -750,12 +745,12 @@ module.exports.all_roadmaps = async function (req, res, next) {
     try {
         const allroadmap = await roadmapmodel.find().sort({ _id: -1 });
         if (!allroadmap) {
-            return res.status(400).json({ success: false, message: "roadmap not found" })
+            return res.status(404).json({ success: false, message: "roadmap not found" })
         }
-        return res.status(200).json({ success: true, allroadmap: allroadmap })
+        return res.status(200).json({ success: true, allroadmaps: allroadmap })
     } catch (error) {
-        res.status(400).json({ success: false, message: error.message })
-        console.log("Error:", error.message);
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
 module.exports.roadmap_update = async function (req, res, next) {
@@ -765,23 +760,23 @@ module.exports.roadmap_update = async function (req, res, next) {
 
         const roadmapcheak = await roadmapmodel.findById(roadmapId);
 
-        if (!roadmapcheak) return res.status(400).json({ message: "roadmap not found", success: false });
+        if (!roadmapcheak) return res.status(404).json({ message: "roadmap not found", success: false });
 
 
         const updateroadmap = await roadmapmodel.findByIdAndUpdate(roadmapId, { $set: { title, icon, link, roadmap_category, description } }, { new: true, runValidators: true })
 
-        if (!updateroadmap) return res.status(400).json({ message: "roadmap updating error", success: false });
+        if (!updateroadmap) return res.status(500).json({ message: "roadmap updating error", success: false });
 
         const allroadmap = await roadmapmodel.find().sort({ _id: -1 });
         if (!allroadmap) {
-            return res.status(400).json({ success: false, message: "roadmap not found" })
+            return res.status(404).json({ success: false, message: "roadmap not found" })
         }
 
         return res.status(200).json({ message: "roadmap updated", success: true, allroadmap: allroadmap });
 
     } catch (error) {
-        res.status(400).json({ success: false, message: error.message })
-        console.log("Error:", error.message);
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
 
     }
 }
@@ -791,12 +786,12 @@ module.exports.roadmap_delete = async function (req, res, next) {
 
         const roadmap = await roadmapmodel.findByIdAndDelete(roadmapId)
         if (!roadmap) {
-            return res.status(400).json({ success: false, message: "roadmap not found" })
+            return res.status(404).json({ success: false, message: "roadmap not found" })
         }
         return res.status(200).json({ success: true, message: "roadmap deleted successfully!" })
 
     } catch (error) {
-        res.status(400).json({ success: false, message: error.message })
-        console.log("Error:", error.message);
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 }

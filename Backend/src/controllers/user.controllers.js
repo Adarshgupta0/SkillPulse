@@ -25,7 +25,7 @@ module.exports.register = async function (req, res, next) {
         const userbyemail = await usermodel.findOne({ email });
 
         if (userbyemail) {
-            return res.status(400).json({ message: "You already have an account, please login", success: false });
+            return res.status(409).json({ message: "You already have an account, please login", success: false });
         }
 
         const hashedPW = await hashPassword(password);
@@ -36,8 +36,8 @@ module.exports.register = async function (req, res, next) {
 
         res.cookie("userAuthToken", token, {
             httpOnly: true,
-            secure: false,
-            sameSite: 'lax',
+            secure: true,
+            sameSite: 'none',
             maxAge: 3600000 * 24,
         });
 
@@ -48,8 +48,8 @@ module.exports.register = async function (req, res, next) {
         });
 
     } catch (error) {
-        res.status(400).json({ success: false, message: error.message })
-        console.log("Error:", error.message);
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 };
 
@@ -80,8 +80,8 @@ module.exports.login = async function (req, res, next) {
 
         res.cookie("userAuthToken", token, {
             httpOnly: true,
-            secure: false,
-            sameSite: 'lax',
+            secure: true,
+            sameSite: 'none',
             maxAge: 3600000 * 24,
         });
 
@@ -92,8 +92,8 @@ module.exports.login = async function (req, res, next) {
         });
 
     } catch (error) {
-        res.status(400).json({ success: false, message: error.message })
-        console.log("Error:", error.message);
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 };
 
@@ -101,12 +101,13 @@ module.exports.logout = async function (req, res, next) {
     try {
         res.clearCookie("userAuthToken", {
             httpOnly: true,
-            sameSite: "strict"
+            secure: true,
+            sameSite: 'none',
         });
         return res.status(200).json({ success: true, message: "Logout successful" });
     } catch (error) {
-        console.error("Logout Error:", error.message);
-        return res.status(500).json({ success: false, message: "Logout failed", error: error.message });
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 
 };
@@ -119,7 +120,7 @@ module.exports.forgot_password = async function (req, res, next) {
         const user = await usermodel.findOne({ email: email })
 
         if (!user) {
-            return res.status(401).json({ message: "user not found", success: false });
+            return res.status(404).json({ message: "user not found", success: false });
         }
 
         const otp = `${Math.floor(100000 + Math.random() * 900000)}`;
@@ -166,8 +167,8 @@ Best regards,
 
         res.cookie("otpAuthToken", token, {
             httpOnly: true,
-            secure: false,
-            sameSite: 'lax',
+            secure: true,
+            sameSite: 'none',
             maxAge: 300000 * 2
         });
 
@@ -175,8 +176,8 @@ Best regards,
 
 
     } catch (error) {
-        console.error("founduser error", error.message);
-        return res.status(504).json({ message: "founduser error", error: error, success: false })
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
 
     }
 
@@ -186,21 +187,20 @@ Best regards,
 
 module.exports.otp_verify = async function (req, res, next) {
 
-
     try {
 
         const { userotp } = req.body;
         const userid = req.userid;
         const user = await usermodel.findById(userid);
         if (!user) {
-            return res.status(401).json({ message: "user not found", success: false });
+            return res.status(404).json({ message: "user not found", success: false });
         }
 
         const userofotp = await otpmodel.findOne({ email: user.email })
         const userdbotp = userofotp.otp;
 
         if (parseInt(userotp) !== parseInt(userdbotp)) {
-            return res.status(401).json({ message: "Invalid OTP", success: false });
+            return res.status(400).json({ message: "Invalid OTP", success: false });
         }
 
         await otpmodel.deleteOne({ _id: userofotp._id });
@@ -209,14 +209,16 @@ module.exports.otp_verify = async function (req, res, next) {
 
         res.cookie("changePassAuthToken", token, {
             httpOnly: true,
-            secure: false,
-            sameSite: 'lax',
+            secure: true,
+            sameSite: 'none',
             maxAge: 300000 * 2
         });
 
         res.clearCookie("otpAuthToken", {
             httpOnly: true,
-            sameSite: "strict"
+            secure: true,
+            sameSite: "none"
+
         });
 
 
@@ -225,8 +227,8 @@ module.exports.otp_verify = async function (req, res, next) {
 
 
     } catch (error) {
-        console.error("otpverify error", error.message);
-        return res.status(504).json({ message: "otpverify error", error: error, success: false })
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
 
     }
 
@@ -241,7 +243,7 @@ module.exports.change_password = async function (req, res, next) {
         const userid = req.userid;
         const user = await usermodel.findById(userid);
         if (!user) {
-            return res.status(401).json({ message: "user not found", success: false });
+            return res.status(404).json({ message: "user not found", success: false });
         }
 
         const hashedPassword = await hashPassword(newpassword);
@@ -250,15 +252,16 @@ module.exports.change_password = async function (req, res, next) {
 
         res.clearCookie("changePassAuthToken", {
             httpOnly: true,
-            sameSite: "strict"
+             secure: true,
+            sameSite: "none"
         });
 
         return res.status(200).json({ message: "Password updated successfully", success: true })
 
 
     } catch (error) {
-        console.error("changepassword error", error.message);
-        return res.status(504).json({ message: "changepassword error", error: error, success: false })
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 
 }
@@ -271,8 +274,8 @@ module.exports.profile = async function (req, res, next) {
 
         res.status(200).json({ success: true, user: req.user });
     } catch (error) {
-        console.error("Profile Error:", error.message);
-        res.status(500).json({ success: false, message: "Profile fetch failed", error: error.message });
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 };
 
@@ -282,25 +285,25 @@ module.exports.home = async function (req, res, next) {
         const user = await usermodel.findById(req.user._id);
 
         if (!user) {
-            return res.status(400).json({ success: false, message: "user not find" })
+            return res.status(404).json({ success: false, message: "user not found" })
         }
 
         const suggestedlesson = await lessonmodel.find({ "lesson_category": user.userCategory })
 
         if (!suggestedlesson) {
-            return res.status(400).json({ success: false, message: "suggestedlesson not find" })
+            return res.status(404).json({ success: false, message: "suggestedlesson not found" })
         }
 
         const suggestedtutorial = await tutorialmodel.find({ "tutorial_category": user.userCategory })
 
         if (!suggestedtutorial) {
-            return res.status(400).json({ success: false, message: "tutorial not find" })
+            return res.status(404).json({ success: false, message: "tutorial not found" })
         }
 
         const roadmaps = await roadmapmodel.find({ "roadmap_category": user.userCategory })
 
         if (!roadmaps) {
-            return res.status(400).json({ success: false, message: "roadmaps not find" })
+            return res.status(404).json({ success: false, message: "roadmaps not found" })
         }
 
 
@@ -315,8 +318,8 @@ module.exports.home = async function (req, res, next) {
 
 
     } catch (error) {
-        console.error("home Error:", error.message);
-        res.status(500).json({ success: false, message: "home fetch failed", error: error.message });
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 
 };
@@ -327,13 +330,13 @@ module.exports.quiz = async function (req, res, next) {
 
         const quizes = await quizmodel.find({ "quizCategory": user.userCategory })
         if (!quizes) {
-            return res.status(400).json({ success: false, message: "quizes not find" })
+            return res.status(404).json({ success: false, message: "quizes not find" })
         }
         return res.status(200).json({ success: true, message: "quizes find", quizes: quizes })
 
     } catch (error) {
-        console.error("quiz Error:", error.message);
-        res.status(500).json({ success: false, message: "quiz fetch failed", error: error.message });
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
 
@@ -343,7 +346,7 @@ module.exports.lesson = async function (req, res, next) {
         const lesson = await lessonmodel.find()
 
         if (!lesson) {
-            return res.status(400).json({ success: false, message: " error lesson found" })
+            return res.status(404).json({ success: false, message: " lesson not found" })
         }
 
         return res.status(200).json({
@@ -353,8 +356,8 @@ module.exports.lesson = async function (req, res, next) {
         });
 
     } catch (error) {
-        console.error("lesson Error:", error.message);
-        res.status(500).json({ success: false, message: "lesson fetch failed", error: error.message });
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
 
@@ -387,8 +390,8 @@ module.exports.edit_profile = async function (req, res, next) {
         return res.status(200).json({ message: "user update", success: true, user: newuser });
 
     } catch (error) {
-        console.error("editprofile Error:", error.message);
-        res.status(500).json({ success: false, message: "editProfile error", error: error.message });
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
 
@@ -398,13 +401,13 @@ module.exports.tutorial = async function (req, res, next) {
         const tutorial = await tutorialmodel.find().sort({ _id: -1 });
 
         if (!tutorial) {
-            return res.status(500).json({ success: false, message: "tutorial fetch failed" });
+            return res.status(404).json({ success: false, message: "tutorial fetch failed" });
         }
         return res.status(200).json({ success: true, message: "tutorial fetch", tutorial: tutorial });
 
     } catch (error) {
-        console.error("tutorial Error:", error.message);
-        res.status(500).json({ success: false, message: "tutorial fetch failed", error: error.message });
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
 
@@ -413,13 +416,13 @@ module.exports.roadmap = async function (req, res, next) {
         const roadmap = await roadmapmodel.find().sort({ _id: -1 });
 
         if (!roadmap) {
-            return res.status(500).json({ success: false, message: "roadmap fetch failed" });
+            return res.status(404).json({ success: false, message: "roadmap fetch failed" });
         }
         return res.status(200).json({ success: true, message: "roadmap fetch", roadmap: roadmap });
 
     } catch (error) {
-        console.error("roadmap Error:", error.message);
-        res.status(500).json({ success: false, message: "roadmap fetch failed", error: error.message });
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
 
@@ -431,6 +434,7 @@ module.exports.auth_check = async function (req, res, next) {
 
         res.status(200).json({ success: true, message: "Authorized" });
     } catch (error) {
-        res.status(500).json({ success: false, message: "authcheck fetch failed", error: error.message });
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
