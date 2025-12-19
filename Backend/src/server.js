@@ -1,7 +1,7 @@
 const http = require("http");
 const app = require("./app");
 const port = 3000;
-
+const connectToDb = require("./config/DBconnect");
 
 const server = http.createServer(app);
 
@@ -14,6 +14,14 @@ process.on('uncaughtException', (err) => {
   process.exit(1); 
 });
 
-server.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
-}); 
+(async () => {
+  try {
+    await connectToDb();
+    server.listen(port, () => {
+      console.log(`Server running on port ${port}`);
+    });
+  } catch (err) {
+    console.error(err);
+    process.exit(1);
+  }
+})();

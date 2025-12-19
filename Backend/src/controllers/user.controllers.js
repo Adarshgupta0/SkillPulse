@@ -135,13 +135,16 @@ module.exports.forgot_password = async function (req, res, next) {
 
 
         const transporter = nodemailer.createTransport({
-            service: "gmail",
-            port: 465,
+            host: process.env.SMTP_HOST,
+            port: Number(process.env.SMTP_PORT),
+            secure: false,
             auth: {
-                user: process.env.NODEMAIL_EMAIL,
-                pass: process.env.NODEMAIL_PASS
-            },
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS
+            }
         });
+        await transporter.verify();
+        console.log("SMTP READY");
 
         let textotp = `Dear [${name}],
 
@@ -154,14 +157,15 @@ This OTP is valid for the next 10 minutes. If you didn't request this, please ig
 For security reasons, do not share this OTP with anyone.
 
 Best regards,
-[StudentHub] Team`
+[Skillhub] Team`
 
-        await transporter.sendMail({
-            from: '"Student app" <student@gmail.com>',
+        const info = await transporter.sendMail({
+            from: "Adarsh Gupta <adarshgupta3335c@gmail.com>",
             to: useremail,
-            subject: "Reset Your Password - OTP Inside",
-            text: textotp,
+            subject: "Reset Your Password - OTP",
+            text: textotp
         });
+        console.log("MAIL SENT:", info.messageId);
 
         const token = generateToken(user)
 
@@ -174,14 +178,11 @@ Best regards,
 
         return res.status(200).json({ message: "OTP send successfully", user: user, success: true });
 
-
     } catch (error) {
         console.error(error);
         return res.status(500).json({ success: false, message: "Internal server error" });
 
     }
-
-
 
 }
 
@@ -252,7 +253,7 @@ module.exports.change_password = async function (req, res, next) {
 
         res.clearCookie("changePassAuthToken", {
             httpOnly: true,
-             secure: true,
+            secure: true,
             sameSite: "none"
         });
 

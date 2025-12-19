@@ -139,13 +139,16 @@ module.exports.forgot_password = async function (req, res, next) {
 
 
         const transporter = nodemailer.createTransport({
-            service: "gmail",
-            port: 465,
+            host: process.env.SMTP_HOST,
+            port: Number(process.env.SMTP_PORT),
+            secure: false,
             auth: {
-                user: process.env.NODEMAIL_EMAIL,
-                pass: process.env.NODEMAIL_PASS
-            },
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS
+            }
         });
+        await transporter.verify();
+        console.log("SMTP READY");
 
         let textotp = `Dear [${name}],
 
@@ -158,14 +161,16 @@ This OTP is valid for the next 10 minutes. If you didn't request this, please ig
 For security reasons, do not share this OTP with anyone.
 
 Best regards,
-[StudentHub] Team`
+[Skillhub] Team`
 
-        await transporter.sendMail({
-            from: '"Student app" <student@gmail.com>',
+
+        const info = await transporter.sendMail({
+            from: "Adarsh Gupta <adarshgupta3335c@gmail.com>",
             to: adminemail,
-            subject: "Reset Your Password - OTP Inside",
-            text: textotp,
+            subject: "Reset Your Password - OTP",
+            text: textotp
         });
+        console.log("MAIL SENT:", info.messageId);
 
         const token = generateToken(admin)
 
@@ -173,7 +178,7 @@ Best regards,
             httpOnly: true,
             secure: true,
             sameSite: 'none',
-            maxAge: 300000
+            maxAge: 300000 * 2
         });
 
         return res.status(200).json({ message: "OTP send successfully", admin: admin, success: true });
@@ -194,7 +199,7 @@ module.exports.otp_verify = async function (req, res, next) {
     try {
 
         const { otp } = req.body;
-        const adminid = req.fogpassadminid;
+        const adminid = req.adminid;
         const admin = await adminmodel.findById(adminid);
         if (!admin) {
             return res.status(404).json({ message: "admin not found", success: false });
@@ -238,7 +243,7 @@ module.exports.change_password = async function (req, res, next) {
     try {
         const { newpassword } = req.body;
 
-        const adminid = req.respassadminid;
+        const adminid = req.adminid;
         const admin = await adminmodel.findById(adminid);
         if (!admin) {
             return res.status(404).json({ message: "admin not found", success: false });
@@ -594,7 +599,7 @@ module.exports.lesson_update = async function (req, res, next) {
         });
 
     } catch (error) {
-       console.error(error);
+        console.error(error);
         return res.status(500).json({ success: false, message: "Internal server error" });
     }
 };
@@ -694,7 +699,7 @@ module.exports.tutorial_update = async function (req, res, next) {
         return res.status(200).json({ message: "tutorial updated", success: true, alltutorial: alltutorial });
 
     } catch (error) {
-       console.error(error);
+        console.error(error);
         return res.status(500).json({ success: false, message: "Internal server error" });
 
     }
@@ -709,7 +714,7 @@ module.exports.tutorial_delete = async function (req, res, next) {
         }
         return res.status(200).json({ success: true, tutorial: tutorial, message: "Tutorial deleted successfully!" })
     } catch (error) {
-       console.error(error);
+        console.error(error);
         return res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
@@ -736,7 +741,7 @@ module.exports.roadmap_create = async function (req, res, next) {
 
 
     } catch (error) {
-       console.error(error);
+        console.error(error);
         return res.status(500).json({ success: false, message: "Internal server error" });
     }
 

@@ -3,8 +3,6 @@ const app = express();
 const cors = require("cors");
 require("dotenv").config();
 const cookieParser = require("cookie-parser");
-const connectToDb = require("./config/DBconnect");
-connectToDb();
 const userRouter = require("./routes/user.route");
 const adminRouter = require("./routes/admin.route");
 app.use(
@@ -19,6 +17,10 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+
+});
 
 app.use("/user", userRouter);
 app.use("/admin", adminRouter);
